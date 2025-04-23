@@ -15,7 +15,7 @@ import java.io.Writer;
 import java.util.List;
 
 @WebServlet("/api/contacts")
-public class CreateContactServlet extends HttpServlet {
+public class ContactsServlet extends HttpServlet {
     @Serial
     private static final long serialVersionUID = 2L;
 
