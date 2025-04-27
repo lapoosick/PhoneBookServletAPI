@@ -10,50 +10,62 @@ import java.util.stream.IntStream;
 public class ContactsInMemoryRepository implements ContactsRepository {
     private static final List<Contact> contacts = new ArrayList<>();
     private static final AtomicInteger newId = new AtomicInteger(1);
+    private static final AtomicInteger newOrdinalNumber = new AtomicInteger(1);
 
     @Override
-    public void saveContact(Contact contact) throws IllegalArgumentException {
+    public void createContact(Contact contact) throws IllegalArgumentException {
         if (contact.getSurname() == null || contact.getSurname().isBlank()) {
-            throw new IllegalArgumentException("Surname is empty");
+            throw new IllegalArgumentException("Не указана фамилия.");
         }
 
         if (contact.getName() == null || contact.getName().isBlank()) {
-            throw new IllegalArgumentException("Name is empty");
+            throw new IllegalArgumentException("Не указано имя.");
         }
 
         if (contact.getPhoneNumber() == null || contact.getPhoneNumber().isBlank()) {
-            throw new IllegalArgumentException("PhoneNumber is empty");
+            throw new IllegalArgumentException("Не указан телефон.");
         }
 
-        String newSurname = contact.getSurname().trim();
-        String newName = contact.getName().trim();
-        String newPhoneNumber = contact.getPhoneNumber().trim();
+        int contactOrdinalNumber = contact.getOrdinalNumber();
+        String contactSurname = contact.getSurname().trim();
+        String contactName = contact.getName().trim();
+        String contactPhoneNumber = contact.getPhoneNumber().trim();
 
         synchronized (contacts) {
             if (contact.getId() == 0) {
                 if (contacts.stream()
-                        .anyMatch(c -> c.getPhoneNumber().equalsIgnoreCase(contact.getPhoneNumber()))) {
-                    throw new IllegalArgumentException("Contact with phone number "
-                            + newPhoneNumber + " is already in use");
+                        .anyMatch(c -> c.getPhoneNumber().equalsIgnoreCase(contactPhoneNumber))) {
+                    throw new IllegalArgumentException("Контакт с таким номером телефона уже существует.");
                 }
 
-                contacts.add(new Contact(newId.getAndIncrement(), newSurname, newName, newPhoneNumber));
+                if (contacts.stream()
+                        .anyMatch(c -> c.getOrdinalNumber() == contactOrdinalNumber)) {
+                    throw new IllegalArgumentException("Контакт с таким порядковым номером уже существует.");
+                }
+
+                contacts.add(new Contact(newId.getAndIncrement(), newOrdinalNumber.getAndIncrement(),
+                        contactSurname, contactName, contactPhoneNumber));
             } else {
                 Contact repositoryContact = contacts.stream()
                         .filter(c -> c.getId() == contact.getId())
                         .findFirst()
-                        .orElseThrow(() -> new IllegalArgumentException("Contact with id " + contact.getId() + " not found"));
+                        .orElseThrow(() -> new IllegalArgumentException("Контакт с таким id не существует."));
 
-                if (!newPhoneNumber.equalsIgnoreCase(repositoryContact.getPhoneNumber())
+                if (!contactPhoneNumber.equalsIgnoreCase(repositoryContact.getPhoneNumber())
                         && contacts.stream()
                         .anyMatch(c -> c.getPhoneNumber().equalsIgnoreCase(contact.getPhoneNumber()))) {
-                    throw new IllegalArgumentException("Contact with phone number "
-                            + newPhoneNumber + " is already in use");
+                    throw new IllegalArgumentException("Контакт с таким номером телефона уже существует.");
                 }
 
-                repositoryContact.setSurname(newSurname);
-                repositoryContact.setName(newName);
-                repositoryContact.setPhoneNumber(newPhoneNumber);
+                if (contactOrdinalNumber != repositoryContact.getOrdinalNumber()
+                        && contactOrdinalNumber != 0) {
+                    throw new IllegalArgumentException("Переданный порядковый номер не принадлежит данному контакту.");
+                }
+
+                repositoryContact.setOrdinalNumber(contactOrdinalNumber);
+                repositoryContact.setSurname(contactSurname);
+                repositoryContact.setName(contactName);
+                repositoryContact.setPhoneNumber(contactPhoneNumber);
             }
         }
     }
@@ -67,10 +79,12 @@ public class ContactsInMemoryRepository implements ContactsRepository {
                         .toList();
             }
 
+            String termLowerCase = term.toLowerCase();
+
             return contacts.stream()
-                    .filter(contact -> contact.getSurname().toLowerCase().contains(term)
-                            || contact.getName().toLowerCase().contains(term)
-                            || contact.getPhoneNumber().toLowerCase().contains(term))
+                    .filter(contact -> contact.getSurname().toLowerCase().contains(termLowerCase)
+                            || contact.getName().toLowerCase().contains(termLowerCase)
+                            || contact.getPhoneNumber().toLowerCase().contains(termLowerCase))
                     .toList();
         }
     }
@@ -78,12 +92,21 @@ public class ContactsInMemoryRepository implements ContactsRepository {
     @Override
     public void deleteContact(int id) {
         synchronized (contacts) {
-            contacts.removeIf(contact -> contact.getId() == id);
+            Contact currentContact = contacts.stream()
+                    .filter(c -> c.getId() == id).findFirst().orElse(null);
 
-            IntStream.range(id - 1, contacts.size())
-                    .forEach(i -> contacts.get(i).setId(contacts.get(i).getId() - 1));
+            if (currentContact == null) {
+                throw new IllegalArgumentException("Не удалось удалить контакт.");
+            }
 
-            newId.decrementAndGet();
+            int currentContactOrdinalNumber = currentContact.getOrdinalNumber();
+
+            contacts.remove(currentContact);
+
+            IntStream.range(currentContactOrdinalNumber - 1, contacts.size())
+                    .forEach(i -> contacts.get(i).setOrdinalNumber(contacts.get(i).getOrdinalNumber() - 1));
+
+            newOrdinalNumber.decrementAndGet();
         }
     }
 }

@@ -43,7 +43,7 @@ public class ContactsServlet extends HttpServlet {
         Contact newContact = mapper.readValue(req.getReader(), Contact.class);
 
         try {
-            contactsRepository.saveContact(newContact);
+            contactsRepository.createContact(newContact);
         } catch (IllegalArgumentException e) {
             mapper.writeValue(resp.getWriter(), "contactSaveError: " + e);
         }
