@@ -57,12 +57,6 @@ public class ContactsInMemoryRepository implements ContactsRepository {
                     throw new IllegalArgumentException("Контакт с таким номером телефона уже существует.");
                 }
 
-                if (contactOrdinalNumber != repositoryContact.getOrdinalNumber()
-                        && contactOrdinalNumber != 0) {
-                    throw new IllegalArgumentException("Переданный порядковый номер не принадлежит данному контакту.");
-                }
-
-                repositoryContact.setOrdinalNumber(contactOrdinalNumber);
                 repositoryContact.setSurname(contactSurname);
                 repositoryContact.setName(contactName);
                 repositoryContact.setPhoneNumber(contactPhoneNumber);
