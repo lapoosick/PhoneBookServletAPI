@@ -5,6 +5,7 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import ru.academits.orlov.phonebookservletapi.dto.GeneralResponse;
 import ru.academits.orlov.phonebookservletapi.entity.Contact;
 import ru.academits.orlov.phonebookservletapi.repository.ContactsInMemoryRepository;
 import ru.academits.orlov.phonebookservletapi.repository.ContactsRepository;
@@ -19,19 +20,22 @@ public class ContactsServlet extends HttpServlet {
     @Serial
     private static final long serialVersionUID = 2L;
 
-    private final ContactsRepository contactsRepository = new ContactsInMemoryRepository();
-
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         resp.setContentType("application/json");
         resp.setCharacterEncoding("UTF-8");
 
+        ContactsRepository contactsRepository = new ContactsInMemoryRepository();
         List<Contact> contactsList = contactsRepository.getContacts(req.getParameter("term"));
 
-        Writer writer = resp.getWriter();
         ObjectMapper objectMapper = new ObjectMapper();
 
-        writer.write(objectMapper.writeValueAsString(contactsList));
+        try {
+            Writer writer = resp.getWriter();
+            writer.write(objectMapper.writeValueAsString(contactsList));
+        } catch (IOException e) {
+            objectMapper.writeValue(resp.getWriter(), GeneralResponse.getErrorResponse("Ошибка ввода/вывода."));
+        }
     }
 
     @Override
@@ -39,20 +43,38 @@ public class ContactsServlet extends HttpServlet {
         resp.setContentType("application/json");
         resp.setCharacterEncoding("UTF-8");
 
-        ObjectMapper mapper = new ObjectMapper();
-        Contact newContact = mapper.readValue(req.getReader(), Contact.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        ContactsRepository contactsRepository = new ContactsInMemoryRepository();
 
         try {
-            contactsRepository.createContact(newContact);
-        } catch (IllegalArgumentException e) {
-            mapper.writeValue(resp.getWriter(), "contactSaveError: " + e);
+            Contact newContact = objectMapper.readValue(req.getReader(), Contact.class);
+            contactsRepository.createOrUpdateContact(newContact);
+
+            objectMapper.writeValue(resp.getWriter(), GeneralResponse.getSuccessResponse());
+        } catch (IllegalArgumentException | IOException e) {
+            objectMapper.writeValue(resp.getWriter(), GeneralResponse.getErrorResponse(e.getMessage()));
         }
     }
 
     @Override
-    protected void doDelete(HttpServletRequest req, HttpServletResponse resp) {
-        int contactId = Integer.parseInt(req.getParameter("id"));
+    protected void doDelete(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        resp.setContentType("application/json");
+        resp.setCharacterEncoding("UTF-8");
 
-        contactsRepository.deleteContact(contactId);
+        ObjectMapper objectMapper = new ObjectMapper();
+        Writer writer = resp.getWriter();
+
+        try {
+            int contactId = Integer.parseInt(req.getParameter("id"));
+            ContactsRepository contactsRepository = new ContactsInMemoryRepository();
+
+            contactsRepository.deleteContact(contactId);
+            objectMapper.writeValue(writer, GeneralResponse.getSuccessResponse());
+        } catch (NumberFormatException e) {
+            objectMapper.writeValue(writer, GeneralResponse.getErrorResponse("Переданный id (" + req.getParameter("id") + ") не является целым числом."));
+        } catch (IllegalArgumentException e) {
+            objectMapper.writeValue(writer, GeneralResponse.getErrorResponse(e.getMessage()));
+        }
     }
 }

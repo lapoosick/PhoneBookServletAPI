@@ -5,56 +5,39 @@ import ru.academits.orlov.phonebookservletapi.entity.Contact;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.IntStream;
 
 public class ContactsInMemoryRepository implements ContactsRepository {
     private static final List<Contact> contacts = new ArrayList<>();
     private static final AtomicInteger newId = new AtomicInteger(1);
-    private static final AtomicInteger newOrdinalNumber = new AtomicInteger(1);
 
     @Override
-    public void createContact(Contact contact) throws IllegalArgumentException {
-        if (contact.getSurname() == null || contact.getSurname().isBlank()) {
-            throw new IllegalArgumentException("Не указана фамилия.");
-        }
+    public void createOrUpdateContact(Contact contact) {
+        isEmptyString(contact.getSurname());
+        isEmptyString(contact.getName());
+        isEmptyString(contact.getPhoneNumber());
 
-        if (contact.getName() == null || contact.getName().isBlank()) {
-            throw new IllegalArgumentException("Не указано имя.");
-        }
-
-        if (contact.getPhoneNumber() == null || contact.getPhoneNumber().isBlank()) {
-            throw new IllegalArgumentException("Не указан телефон.");
-        }
-
-        int contactOrdinalNumber = contact.getOrdinalNumber();
+        int contactId = contact.getId();
         String contactSurname = contact.getSurname().trim();
         String contactName = contact.getName().trim();
         String contactPhoneNumber = contact.getPhoneNumber().trim();
 
         synchronized (contacts) {
-            if (contact.getId() == 0) {
+            if (contactId == 0) {
                 if (contacts.stream()
                         .anyMatch(c -> c.getPhoneNumber().equalsIgnoreCase(contactPhoneNumber))) {
-                    throw new IllegalArgumentException("Контакт с таким номером телефона уже существует.");
+                    throw new IllegalArgumentException("Контакт с номером телефона " + contactPhoneNumber + " уже существует.");
                 }
 
-                if (contacts.stream()
-                        .anyMatch(c -> c.getOrdinalNumber() == contactOrdinalNumber)) {
-                    throw new IllegalArgumentException("Контакт с таким порядковым номером уже существует.");
-                }
-
-                contacts.add(new Contact(newId.getAndIncrement(), newOrdinalNumber.getAndIncrement(),
-                        contactSurname, contactName, contactPhoneNumber));
+                contacts.add(new Contact(newId.getAndIncrement(), contactSurname, contactName, contactPhoneNumber));
             } else {
                 Contact repositoryContact = contacts.stream()
-                        .filter(c -> c.getId() == contact.getId())
+                        .filter(c -> c.getId() == contactId)
                         .findFirst()
-                        .orElseThrow(() -> new IllegalArgumentException("Контакт с таким id не существует."));
+                        .orElseThrow(() -> new IllegalArgumentException("Контакт с id = " + contactId + " не найден."));
 
                 if (!contactPhoneNumber.equalsIgnoreCase(repositoryContact.getPhoneNumber())
-                        && contacts.stream()
-                        .anyMatch(c -> c.getPhoneNumber().equalsIgnoreCase(contact.getPhoneNumber()))) {
-                    throw new IllegalArgumentException("Контакт с таким номером телефона уже существует.");
+                        && contacts.stream().anyMatch(c -> c.getPhoneNumber().equalsIgnoreCase(contactPhoneNumber))) {
+                    throw new IllegalArgumentException("Контакт с номером телефона " + contactPhoneNumber + " уже существует.");
                 }
 
                 repositoryContact.setSurname(contactSurname);
@@ -87,20 +70,21 @@ public class ContactsInMemoryRepository implements ContactsRepository {
     public void deleteContact(int id) {
         synchronized (contacts) {
             Contact currentContact = contacts.stream()
-                    .filter(c -> c.getId() == id).findFirst().orElse(null);
+                    .filter(c -> c.getId() == id)
+                    .findFirst()
+                    .orElse(null);
 
             if (currentContact == null) {
-                throw new IllegalArgumentException("Не удалось удалить контакт.");
+                throw new IllegalArgumentException("Контакт с id = " + id + " не найден.");
             }
 
-            int currentContactOrdinalNumber = currentContact.getOrdinalNumber();
-
             contacts.remove(currentContact);
+        }
+    }
 
-            IntStream.range(currentContactOrdinalNumber - 1, contacts.size())
-                    .forEach(i -> contacts.get(i).setOrdinalNumber(contacts.get(i).getOrdinalNumber() - 1));
-
-            newOrdinalNumber.decrementAndGet();
+    private void isEmptyString(String string) {
+        if (string == null || string.isBlank()) {
+            throw new IllegalArgumentException("Не заполнено обязательное поле.");
         }
     }
 }

@@ -5,7 +5,7 @@ import ru.academits.orlov.phonebookservletapi.entity.Contact;
 import java.util.List;
 
 public interface ContactsRepository {
-    void createContact(Contact contact) throws IllegalArgumentException;
+    void createOrUpdateContact(Contact contact);
 
     List<Contact> getContacts(String term);
 
