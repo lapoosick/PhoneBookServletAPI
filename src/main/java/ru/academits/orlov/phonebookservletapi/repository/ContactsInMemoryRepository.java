@@ -12,9 +12,9 @@ public class ContactsInMemoryRepository implements ContactsRepository {
 
     @Override
     public void createOrUpdateContact(Contact contact) {
-        isEmptyString(contact.getSurname());
-        isEmptyString(contact.getName());
-        isEmptyString(contact.getPhoneNumber());
+        isNullOrEmpty(contact.getSurname());
+        isNullOrEmpty(contact.getName());
+        isNullOrEmpty(contact.getPhoneNumber());
 
         int contactId = contact.getId();
         String contactSurname = contact.getSurname().trim();
@@ -72,17 +72,13 @@ public class ContactsInMemoryRepository implements ContactsRepository {
             Contact currentContact = contacts.stream()
                     .filter(c -> c.getId() == id)
                     .findFirst()
-                    .orElse(null);
-
-            if (currentContact == null) {
-                throw new IllegalArgumentException("Контакт с id = " + id + " не найден.");
-            }
+                    .orElseThrow(() -> new IllegalArgumentException("Контакт с id = " + id + " не найден."));
 
             contacts.remove(currentContact);
         }
     }
 
-    private void isEmptyString(String string) {
+    private void isNullOrEmpty(String string) {
         if (string == null || string.isBlank()) {
             throw new IllegalArgumentException("Не заполнено обязательное поле.");
         }
